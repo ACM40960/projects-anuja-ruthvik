@@ -1,0 +1,21 @@
+# Credentialed / derived MIMIC-IV data
+data/
+mimic-iv-*/
+
+# Python environments and caches
+.conda/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local credentials / environment files
+.env
+credentials*.json
+service-account*.json
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
