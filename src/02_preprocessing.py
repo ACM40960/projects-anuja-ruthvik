@@ -136,11 +136,26 @@ def main():
     verify_window_config()
 
     cohort = pd.read_parquet(f"{DATA_DIR}/cohort.parquet")
-    labels = pd.read_parquet(f"{DATA_DIR}/labels.parquet")
     vitals = pd.read_parquet(f"{DATA_DIR}/vitals_raw.parquet")
     labs = pd.read_parquet(f"{DATA_DIR}/labs_raw.parquet")
     demo = pd.read_parquet(f"{DATA_DIR}/demographics.parquet")
 
+    # NOTE (fixed): preprocessing builds features for the ENTIRE base cohort
+    # from 01 -- it deliberately does NOT read horizon_labels.parquet or filter
+    # by any horizon's eligibility here. Two reasons:
+    #   1. Feature engineering shouldn't need to know about label definitions
+    #      at all -- keeping them decoupled means 02 and 04 can run in either
+    #      order, and this file no longer silently depends on 04 having been
+    #      run first with a specific PREDICTION_HORIZONS list.
+    #   2. The previous version filtered to 24h-eligible stays HERE, before
+    #      saving feature_matrix_raw.parquet. Since 05_horizon_sensitivity.py
+    #      reuses that same shared file for the 36h/48h horizons too, any
+    #      stay that was ineligible-for-24h-but-eligible-for-48h was silently
+    #      dropped from the 48h analysis as well. Eligibility is horizon-
+    #      specific, so filtering it must happen per-horizon, at the point
+    #      each horizon's labels are actually joined in (06 for the primary
+    #      24h model, 05 per-horizon for sensitivity) -- not baked into the
+    #      one shared feature matrix.
     cohort["intime"] = pd.to_datetime(cohort["intime"], utc=True)
     vitals["charttime"] = pd.to_datetime(vitals["charttime"], utc=True)
     labs["charttime"] = pd.to_datetime(labs["charttime"], utc=True)
@@ -179,25 +194,26 @@ def main():
     features["gender"] = (features["gender"] == "M").astype(int)  # 1=male, 0=female
     features = pd.get_dummies(features, columns=["first_careunit", "admission_type"], dummy_na=False)
 
-    final = features.merge(labels, on="stay_id", how="left")
-
     os.makedirs(DATA_DIR, exist_ok=True)
-    
-    # Save FEATURES and LABELS separately (not mixed)
-    # This enforces clean separation: features come from hours 0-6 only,
-    # labels come from hours 6-30 only.
-    X_final = final.drop(columns=["died_in_icu", "deteriorated_composite"])
-    y_final = final[["stay_id", "died_in_icu", "deteriorated_composite"]]
-    
-    X_final.to_parquet(f"{DATA_DIR}/feature_matrix_raw.parquet", index=False)
-    y_final.to_parquet(f"{DATA_DIR}/labels_matrix.parquet", index=False)
+
+    # No labels merged in here, and no eligibility filtering -- this file
+    # contains one row per stay in the FULL base cohort (all MIN_LOS_HOURS-
+    # qualifying stays from 01). Whatever script needs a specific horizon's
+    # labels (06 for the primary 24h model, 05 for the sensitivity sweep)
+    # reads horizon_labels.parquet from 04 itself and does its own
+    # horizon_hours==X, eligible==1 filter + inner join against this file.
+    features.to_parquet(f"{DATA_DIR}/feature_matrix_raw.parquet", index=False)
 
     print(f"\nObservation-window lock: PASS -- all time-varying features were "
           f"validated within hours 0-{OBSERVATION_WINDOW_HOURS} before aggregation.")
-    print(f"Feature matrix (pre-imputation): {X_final.shape[0]} rows x {X_final.shape[1]} columns")
+    print(f"Feature matrix (pre-imputation, FULL base cohort, no label/horizon "
+          f"filtering applied): {features.shape[0]} rows x {features.shape[1]} columns")
     print(f"Saved to {DATA_DIR}/feature_matrix_raw.parquet")
-    print(f"Labels saved to {DATA_DIR}/labels_matrix.parquet")
-    print("Next: Step 5 — model development (train/test split + imputation happens there now)")
+    print("\nNote: this file has NO labels and NO horizon-eligibility filtering.")
+    print("Run 04_prediction_horizons.py (any time before or after this script) to")
+    print("produce horizon_labels.parquet, which 06_model_evaluation.py and")
+    print("05_horizon_sensitivity.py each join against this feature matrix themselves,")
+    print("filtered to their own horizon_hours/eligible criteria.")
 
 
 if __name__ == "__main__":

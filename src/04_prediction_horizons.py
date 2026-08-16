@@ -46,7 +46,13 @@ def build_horizon_query(horizon_hours: int) -> str:
         WHERE a.deathtime IS NOT NULL
           AND a.deathtime > TIMESTAMP_ADD(c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS} HOUR)
           AND a.deathtime <= TIMESTAMP_ADD(c.intime, INTERVAL {end_hour} HOUR)
-          AND a.deathtime <= c.outtime
+        -- NOTE: deliberately NOT capped at c.outtime. deathtime comes from the
+        -- hospital-wide admissions table, not an ICU-scoped one, so a patient
+        -- who is transferred out and dies shortly after, from the same
+        -- deterioration episode, should still count. Vasopressor/ventilation
+        -- below remain implicitly ICU-scoped (joined via stay_id against
+        -- ICU-module tables), so mortality is intentionally the one sub-event
+        -- with a wider view -- not a bug to be matched down to their blind spot.
         GROUP BY c.stay_id
     ),
 
