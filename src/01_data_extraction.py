@@ -51,56 +51,15 @@ WHERE stay_rank = 1
 """
 
 
-# Build label query: deterioration events within prediction window
-def build_label_query(cohort_stay_ids_sql: str) -> str:
-    return f"""
-    WITH cohort AS ({cohort_stay_ids_sql}),
-    mortality AS (
-        SELECT c.stay_id,
-               CASE WHEN a.deathtime IS NOT NULL
-                         AND a.deathtime > TIMESTAMP_ADD(
-                             c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS} HOUR
-                         )
-                         AND a.deathtime <= TIMESTAMP_ADD(
-                             c.intime,
-                             INTERVAL {OBSERVATION_WINDOW_HOURS + PREDICTION_WINDOW_HOURS} HOUR
-                         )
-                    THEN 1 ELSE 0 END AS died_in_icu
-        FROM cohort c
-        JOIN `physionet-data.mimiciv_3_1_hosp.admissions` a
-          ON c.hadm_id = a.hadm_id
-    ),
-    vasopressors AS (
-        -- norepinephrine, epinephrine, dopamine, dobutamine, vasopressin, phenylephrine
-        SELECT DISTINCT stay_id
-        FROM `physionet-data.mimiciv_3_1_icu.inputevents` ie
-        JOIN cohort c USING (stay_id)
-        JOIN `physionet-data.mimiciv_3_1_icu.d_items` d ON ie.itemid = d.itemid
-        WHERE LOWER(d.label) LIKE ANY (
-              '%norepinephrine%', '%epinephrine%', '%dopamine%',
-              '%dobutamine%', '%vasopressin%', '%phenylephrine%')
-          AND ie.starttime > TIMESTAMP_ADD(c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS} HOUR)
-          AND ie.starttime <= TIMESTAMP_ADD(c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS + PREDICTION_WINDOW_HOURS} HOUR)
-    ),
-    ventilation AS (
-        SELECT DISTINCT stay_id
-        FROM `physionet-data.mimiciv_3_1_icu.procedureevents` pe
-        JOIN cohort c USING (stay_id)
-        JOIN `physionet-data.mimiciv_3_1_icu.d_items` d ON pe.itemid = d.itemid
-        WHERE LOWER(d.label) LIKE '%invasive vent%'
-          AND pe.starttime > TIMESTAMP_ADD(c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS} HOUR)
-          AND pe.starttime <= TIMESTAMP_ADD(c.intime, INTERVAL {OBSERVATION_WINDOW_HOURS + PREDICTION_WINDOW_HOURS} HOUR)
-    )
-    SELECT
-        c.stay_id,
-        m.died_in_icu,
-        CASE WHEN v.stay_id IS NOT NULL OR vent.stay_id IS NOT NULL OR m.died_in_icu = 1
-             THEN 1 ELSE 0 END AS deteriorated_composite
-    FROM cohort c
-    LEFT JOIN mortality m USING (stay_id)
-    LEFT JOIN vasopressors v USING (stay_id)
-    LEFT JOIN ventilation vent USING (stay_id)
-    """
+# NOTE: label construction (mortality / vasopressor / ventilation / eligibility)
+# is now defined in exactly one place: 04_prediction_horizons.py. Run that
+# script (with PREDICTION_HORIZONS including 24) to produce horizon_labels.parquet
+# -- 02_preprocessing.py reads labels from there, filtered to horizon_hours==24
+# and eligible==1. This file previously had its own, slightly different copy
+# of the same label SQL (missing 04's outtime handling), which meant the
+# "primary" 24h result and the horizon-sensitivity 24h result were silently
+# computed from two different label definitions. Don't reintroduce a second
+# copy here.
 
 
 # Extract vital signs from chartevents within observation window to prevent temporal leakage
@@ -179,11 +138,6 @@ def main():
     # Use cohort SQL as server-side subquery for consistency and efficiency
     cohort_sql = COHORT_SQL
 
-    print("Extracting labels...")
-    labels = run_query(build_label_query(cohort_sql))
-    print(f"  Mortality rate: {labels['died_in_icu'].mean():.2%}")
-    print(f"  Composite deterioration rate: {labels['deteriorated_composite'].mean():.2%}")
-
     print("Extracting vitals (chartevents)...")
     vitals = run_query(build_vitals_query(cohort_sql))
     vitals["feature_name"] = vitals["itemid"].map(VITAL_ITEMIDS)
@@ -200,9 +154,12 @@ def main():
     demo = run_query(build_demographics_query(cohort_sql))
 
     # Save raw extracts for preprocessing pipeline
+    # NOTE: labels are NOT saved here -- run 04_prediction_horizons.py
+    # separately to produce horizon_labels.parquet, which 02_preprocessing.py
+    # reads (filtered to horizon_hours==24, eligible==1) as the single source
+    # of truth for died_in_icu / deteriorated_composite.
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     cohort.to_parquet(f"{OUTPUT_DIR}/cohort.parquet", index=False)
-    labels.to_parquet(f"{OUTPUT_DIR}/labels.parquet", index=False)
     vitals.to_parquet(f"{OUTPUT_DIR}/vitals_raw.parquet", index=False)
     labs.to_parquet(f"{OUTPUT_DIR}/labs_raw.parquet", index=False)
     demo.to_parquet(f"{OUTPUT_DIR}/demographics.parquet", index=False)
@@ -221,7 +178,9 @@ def main():
           f"outcomes=>{OBSERVATION_WINDOW_HOURS}-{OBSERVATION_WINDOW_HOURS + PREDICTION_WINDOW_HOURS}h")
     print(f"Saved temporal configuration to {OUTPUT_DIR}/window_config.json")
     print(f"\nDone. Raw extracts saved to {OUTPUT_DIR}/")
-    print("Next: Step 3 — preprocessing (resampling, missingness handling, outlier removal)")
+    print("Next: run 02_preprocessing.py and 04_prediction_horizons.py -- either order, "
+          "they no longer depend on each other. 06_model_evaluation.py needs both done "
+          "before it can run.")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,20 +25,58 @@ CALIBRATION_CV_FOLDS = 3     # folds used inside CalibratedClassifierCV
 CALIBRATION_METHOD = "isotonic"  # isotonic needs decent data volume (fine at 50k+ train rows); use "sigmoid" for smaller data
 SHAP_SAMPLE_SIZE = 2000
 SHAP_TOP_N = 15
+# All four clinically requested dependence features (SBP, respiratory rate,
+# GCS, lactate). choose_dependence_features() already had fallback groups
+# defined for all four -- only sbp_min/lactate_last were actually being
+# requested here, so resp_rate and GCS were silently never plotted.
 SHAP_DEPENDENCE_FEATURES = [
     "sbp_min",
+    "resp_rate_mean",
     "lactate_last",
+    "gcs_verbal_last",
 ]
 RANDOM_STATE = 42
 
 
+HORIZON_HOURS = 24   # primary analysis horizon -- must match a value 04_prediction_horizons.py extracted
+
+
 def load_raw_features():
     df = pd.read_parquet(f"{DATA_DIR}/feature_matrix_raw.parquet")
-    labels = pd.read_parquet(f"{DATA_DIR}/labels_matrix.parquet")
-    
-    # Merge to get stay_id, subject_id for later patient-leakage checks
-    df = df.merge(labels[["stay_id", "died_in_icu", "deteriorated_composite"]], on="stay_id", how="left")
-    
+
+    # NOTE (fixed): 02_preprocessing.py no longer filters by horizon-eligibility
+    # or merges in labels -- it now produces one shared feature matrix for the
+    # ENTIRE base cohort, decoupled from any specific label/horizon definition
+    # (see the note at the top of 02_preprocessing.py for why). This script is
+    # therefore the one that reads horizon_labels.parquet from 04 and applies
+    # the 24h-specific eligibility filter, at the point the labels are
+    # actually needed -- rather than that filtering being silently baked into
+    # a file every other horizon-specific analysis (05) also had to reuse.
+    horizon_labels_path = f"{DATA_DIR}/horizon_labels.parquet"
+    if not os.path.exists(horizon_labels_path):
+        raise FileNotFoundError(
+            f"Missing {horizon_labels_path}. Run 04_prediction_horizons.py "
+            f"(with {HORIZON_HOURS} included in PREDICTION_HORIZONS) first."
+        )
+    horizon_labels = pd.read_parquet(horizon_labels_path)
+    labels = horizon_labels[horizon_labels["horizon_hours"] == HORIZON_HOURS].copy()
+
+    n_before = len(labels)
+    labels = labels[labels["eligible"] == 1].copy()
+    n_excluded = n_before - len(labels)
+    print(f"{HORIZON_HOURS}h horizon labels: {n_before} stays total, {n_excluded} excluded "
+          f"as ineligible (early death before hour {6}, or discharged before hour "
+          f"{6 + HORIZON_HOURS} with no event captured), {len(labels)} remaining")
+
+    labels = labels[["stay_id", "death_event", "deteriorated_composite"]].rename(
+        columns={"death_event": "died_in_icu"}
+    )
+
+    # Inner join: only stays present in BOTH the feature matrix and this
+    # horizon's eligible set survive -- ineligible stays are dropped here,
+    # at the point of use, not upstream in the shared feature file.
+    df = df.merge(labels, on="stay_id", how="inner")
+
     id_cols = ["stay_id", "subject_id", "hadm_id"]
     label_cols = ["died_in_icu", "deteriorated_composite"]
     drop_cols = [c for c in id_cols + label_cols if c in df.columns]
@@ -221,7 +260,6 @@ def save_global_shap_outputs(shap_values, X_for_plot, data_dir):
 
 
 def main():
-    import os
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(RESULTS_DIR, exist_ok=True)
     X, y, df = load_raw_features()
