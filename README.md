@@ -421,7 +421,7 @@ All models demonstrate strong discrimination ability with AUC-ROC > 0.81:
 
 #### ROC Curve Comparison
 
-![ROC Curves - All Models](./roc_curves_full.png)
+![ROC Curves - All Models](./results/roc_curves_full.png)
 
 The ROC curve visualization shows:
 - All three models cluster in the upper left, indicating excellent discrimination
@@ -445,7 +445,7 @@ Calibration ensures that predicted probabilities match actual outcomes. A well-c
 
 #### Calibration Results
 
-![Calibration Curves - Before & After Isotonic Regression](./calibration_curves_full_before_after.png)
+![Calibration Curves - Before & After Isotonic Regression](./results/calibration_curves_full_before_after.png)
 
 **Left Panel (BEFORE Calibration):**
 - Raw XGBoost predictions (green) deviate from perfect calibration (gray diagonal)
@@ -469,7 +469,7 @@ Global explanations help understand which features drive predictions across all 
 
 ### Feature Importance: Which Features Matter Most?
 
-![SHAP Feature Importance - Top 15 Features](./shap_feature_importance_full.png)
+![SHAP Feature Importance - Top 15 Features](./results/shap_feature_importance_full.png)
 
 **Top 5 Most Important Features:**
 
@@ -507,7 +507,7 @@ Global explanations help understand which features drive predictions across all 
 
 ### Summary Plot: Feature Values vs Impact
 
-![SHAP Summary Plot (Beeswarm)](./shap_summary_full.png)
+![SHAP Summary Plot (Beeswarm)](./results/shap_summary_full.png)
 
 **How to Read This Plot:**
 - **Y-axis**: Features ranked by importance (top = most important)
@@ -543,7 +543,7 @@ Dependence plots show how individual features relate to predictions, helping cli
 
 ### Lactate: The Most Critical Indicator
 
-![SHAP Dependence Plot: Lactate (Last Value)](./shap_dependence_lactate_last.png)
+![SHAP Dependence Plot: Lactate (Last Value)](./results/shap_dependence_lactate_last.png)
 
 **Interpretation:**
 - **X-axis**: Latest lactate measurement (mmol/L)
@@ -564,7 +564,7 @@ Dependence plots show how individual features relate to predictions, helping cli
 
 ### Blood Pressure: Hemodynamic Stability
 
-![SHAP Dependence Plot: Systolic BP - Minimum](./shap_dependence_sbp_min.png)
+![SHAP Dependence Plot: Systolic BP - Minimum](./results/shap_dependence_sbp_min.png)
 
 **Interpretation:**
 - **X-axis**: Minimum systolic BP in first 6 hours (mmHg)
@@ -584,7 +584,7 @@ Dependence plots show how individual features relate to predictions, helping cli
 
 ### Respiratory Rate: Ventilatory Stress
 
-![SHAP Dependence Plot: Respiratory Rate - Mean](./shap_dependence_resp_rate_mean.png)
+![SHAP Dependence Plot: Respiratory Rate - Mean](./results/shap_dependence_resp_rate_mean.png)
 
 **Interpretation:**
 - **X-axis**: Average respiratory rate in first 6 hours (breaths/min)
@@ -605,7 +605,7 @@ Dependence plots show how individual features relate to predictions, helping cli
 
 ### Consciousness: Neurological Status
 
-![SHAP Dependence Plot: GCS Verbal Score - Last](./shap_dependence_gcs_verbal_last.png)
+![SHAP Dependence Plot: GCS Verbal Score - Last](./results/shap_dependence_gcs_verbal_last.png)
 
 **Interpretation:**
 - **X-axis**: Latest Glasgow Coma Scale Verbal score (1-5, or 0 if intubated)
@@ -631,7 +631,7 @@ Patient-level (local) explanations show why the model made a specific prediction
 
 ### Case 1: True Positive (Correctly Predicted Deterioration)
 
-![SHAP Waterfall Plot: True Positive Case](./shap_waterfall_true_positive.png)
+![SHAP Waterfall Plot: True Positive Case](./results/shap_waterfall_true_positive.png)
 
 **Understanding This Plot:**
 
@@ -686,7 +686,7 @@ This patient was correctly flagged as high-risk because of:
 
 ### Case 2: False Negative (Missed Deterioration)
 
-![SHAP Waterfall Plot: False Negative Case](./shap_waterfall_false_negative.png)
+![SHAP Waterfall Plot: False Negative Case](./results/shap_waterfall_false_negative.png)
 
 **Understanding This Plot:**
 
@@ -785,7 +785,7 @@ Predicting deterioration at different time windows reveals how early we can reli
 
 #### ROC Curves: Visual Comparison
 
-![XGBoost Sensitivity to Prediction Horizon](./horizon_sensitivity_roc.png)
+![XGBoost Sensitivity to Prediction Horizon](./results/horizon_sensitivity_roc.png)
 
 **Visualization Details:**
 - **Blue (6h → 24h, AUC=0.825)**: Steepest curve, best discrimination
