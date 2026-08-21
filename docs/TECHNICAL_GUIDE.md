@@ -428,7 +428,7 @@ ICU Admission (time = 0h)
 
 ---
 
-**Last Updated:** August 2024  
+**Last Updated:** August 2026 
 **MIMIC-IV Version:** 3.1  
 **Python Version:** 3.8+  
 **Framework:** XGBoost 1.7+, SHAP 0.41+, scikit-learn 1.0+

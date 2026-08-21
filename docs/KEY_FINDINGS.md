@@ -11,7 +11,8 @@ A comprehensive guide to the key findings of the project, and the results of the
 3. [Model Evaluation & Calibration](#model-evalution)
 4. [Global Model Explanations](#global-model-explanations)
 5. [Feature-Specific Dependence Analysis](#feature-analysis)
-6. [Key Findings](#key-findings)
+6. [Clinical Implications](#clinical-implications)
+7. [Methodological Strengths](#methodological-strengths)
 
 ---
 
@@ -91,9 +92,7 @@ See `results/shap_dependence_*.png` files for detailed dependence plots.
 
 ---
 
-## Key Findings
-
-### Clinical Implications
+## Clinical Implications
 
 1. **Early Prediction**: Deterioration signals are apparent in first 6 hours
 2. **High Sensitivity**: Model catches 73.6% of deterioration cases
@@ -101,7 +100,7 @@ See `results/shap_dependence_*.png` files for detailed dependence plots.
 4. **Interpretable**: SHAP explanations enable clinical understanding
 5. **Actionable**: Feature importance guides clinical assessment
 
-### Methodological Strengths
+## Methodological Strengths
 
 1. **Rigorous Temporal Design**: Strict 6-hour feature window prevents leakage
 2. **Multiple Events**: Captures different deterioration types
