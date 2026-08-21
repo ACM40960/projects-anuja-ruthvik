@@ -253,6 +253,22 @@ Key topics covered:
 
 ---
 
+## Key Findings
+
+For detailed key findings documentation, see **[KEY_FINDINGS.md](docs/KEY_FINDINGS.md)**.
+
+Key topics covered:
+- Model Performance
+- Cohort Statistics
+- Model Evaluation & Calibration
+- Performance Evaluation Metrics
+- Global Model Explanations
+- Feature-Specific Dependence Analysis
+- Clinical Implications
+- Methodological Strengths
+
+---
+
 ## File Structure
 
 ```
@@ -384,7 +400,7 @@ This code is provided to facilitate research using MIMIC-IV. Users of this code 
 
 ---
 
-**Last Updated:** August 2024  
+**Last Updated:** August 2026  
 **MIMIC-IV Version:** 3.1  
 **Status:** Research Implementation Complete
 

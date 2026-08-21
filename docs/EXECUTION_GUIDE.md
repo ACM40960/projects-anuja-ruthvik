@@ -873,6 +873,6 @@ After running the pipeline, verify:
 - **SHAP Documentation**: https://shap.readthedocs.io/
 - **XGBoost Documentation**: https://xgboost.readthedocs.io/
 
-**Last Updated:** August 2024  
+**Last Updated:** August 2026
 **MIMIC-IV Version:** 3.1  
 **Python Version:** 3.8+
